@@ -1,0 +1,1 @@
+cl /Fevgmpl98.exe /DPC98=1 *.c

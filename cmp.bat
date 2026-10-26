@@ -1,0 +1,1 @@
+cl /Fevgmpl.exe *.c
