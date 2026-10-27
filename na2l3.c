@@ -31,6 +31,7 @@ typedef struct {
     u8_t r[4];
     u8_t l[4];
     u8_t opl3_conn;
+    u8_t lfo;
 } vopna_state_t;
 
 vopna_state_t v_state_p0;
@@ -74,17 +75,13 @@ u8_t cnt1_map[8] =       {0, 0, 0, 0, 0, 1, 1, 1};
 u8_t slot_bit[4] = {1, 2, 4, 8};
 
 void init_opna_to_opl3() {
+    int i;
     memset(&v_state_p0, 0, sizeof(v_state_p0));
     memset(&v_state_p1, 0, sizeof(v_state_p1));
-    v_state_p0.r[0] = 1;
-    v_state_p0.r[1] = 1;
-    v_state_p0.r[2] = 1;
-    v_state_p0.r[3] = 1;
-
-    v_state_p1.r[0] = 1;
-    v_state_p1.r[1] = 1;
-    v_state_p1.r[2] = 1;
-    v_state_p1.r[3] = 1;
+    for (i = 0; i < 4; ++i) {
+        v_state_p0.l[i] = v_state_p0.r[i] = 1;
+        v_state_p1.l[i] = v_state_p1.r[i] = 1;
+    }
     dosstuff_write_reg(0x388, OPL3_REG_L_ST1_ST2_MT2_MT1_RST, 0x80);
     dosstuff_write_reg(0x38a, OPL3_REG_H_NEW, 1);
     init_ssg_to_opl3();
@@ -303,9 +300,14 @@ void opna_to_opl3(u8_t reg, u8_t data, u8_t port_idx) {
         v_state->l[idx] = l;
         dosstuff_write_reg(port_base, OPL3_REG_CNT_FB_R_L_EX0_EX1_0 + idx, 0xc0 | (l << 4) | (r << 5) | (v_state->fb[idx] << 1) | cnt0_map[v_state->connect[idx]]);
         dosstuff_write_reg(port_base, OPL3_REG_CNT_FB_R_L_EX0_EX1_3 + idx, 0xc0 | (l << 4) | (r << 5) | cnt1_map[v_state->connect[idx]]);
+    } else if (reg == OPNA_FM_REG_LOAD_ENABLE_RESET_MODE) {
+        u8_t mode = data >> 6;
+    } else if (reg == OPNA_FM_REG_LFO) {
+        v_state_p0.lfo = data & 0x0f;
+    } else if (port_idx == 0) {
+        ssg_to_opl3(reg, data, port_idx);
+        ryt_to_opl3(reg, data, port_idx);
     }
-    ssg_to_opl3(reg, data, port_idx);
-    ryt_to_opl3(reg, data, port_idx);
 }
 
 u16_t ssg_note[3] = {0, 0, 0};
@@ -461,7 +463,7 @@ void init_ryt_to_opl3() {
 
     dosstuff_write_reg(0x388, OPL3_REG_F_NUMBER_L_7, 177);
     dosstuff_write_reg(0x388, OPL3_REG_FNUM_H_BLOCK_KON_7, 0x06);
-    
+
     dosstuff_write_reg(0x388, OPL3_REG_F_NUMBER_L_8, 177);
     dosstuff_write_reg(0x388, OPL3_REG_FNUM_H_BLOCK_KON_8, 0x06);
 }
