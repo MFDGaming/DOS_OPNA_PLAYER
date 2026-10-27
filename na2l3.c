@@ -416,16 +416,16 @@ void init_ryt_to_opl3() {
     dosstuff_write_reg(0x388, OPL3_REG_HH_TC_TOM_SD_BD_RYT_DVB_DAM, 0x20);
 
     /* BD */
-    dosstuff_write_reg(0x388, OPL3_REG_DR_AR_12, 0xfc);
-    dosstuff_write_reg(0x388, OPL3_REG_DR_AR_15, 0xfa);
-    dosstuff_write_reg(0x388, OPL3_REG_RR_SL_12, 0xc3);
-    dosstuff_write_reg(0x388, OPL3_REG_RR_SL_15, 0x06);
+    dosstuff_write_reg(0x388, OPL3_REG_DR_AR_12, 0xff);
+    dosstuff_write_reg(0x388, OPL3_REG_DR_AR_15, 0xff);
+    dosstuff_write_reg(0x388, OPL3_REG_RR_SL_12, 0xf4);
+    dosstuff_write_reg(0x388, OPL3_REG_RR_SL_15, 0x28);
     dosstuff_write_reg(0x388, OPL3_REG_TL_KSL_12, 11);
     dosstuff_write_reg(0x388, OPL3_REG_TL_KSL_15, 11);
-    dosstuff_write_reg(0x388, OPL3_REG_MULT_KSR_EGT_VIB_AM_12, 0x20);
+    dosstuff_write_reg(0x388, OPL3_REG_MULT_KSR_EGT_VIB_AM_12, 0x01);
     dosstuff_write_reg(0x388, OPL3_REG_MULT_KSR_EGT_VIB_AM_15, 0x01);
-    dosstuff_write_reg(0x388, OPL3_REG_WS_12, 5);
-    dosstuff_write_reg(0x388, OPL3_REG_WS_15, 0);
+    dosstuff_write_reg(0x388, OPL3_REG_WS_12, 3);
+    dosstuff_write_reg(0x388, OPL3_REG_WS_15, 5);
     
     /* SD */
     dosstuff_write_reg(0x388, OPL3_REG_DR_AR_16, 0xf7);
@@ -457,8 +457,11 @@ void init_ryt_to_opl3() {
 
     dosstuff_write_reg(0x388, OPL3_REG_F_NUMBER_L_6, 177);
     dosstuff_write_reg(0x388, OPL3_REG_FNUM_H_BLOCK_KON_6, 0x06);
+    dosstuff_write_reg(0x388, OPL3_REG_CNT_FB_R_L_EX0_EX1_6, 0xfa);
+
     dosstuff_write_reg(0x388, OPL3_REG_F_NUMBER_L_7, 177);
     dosstuff_write_reg(0x388, OPL3_REG_FNUM_H_BLOCK_KON_7, 0x06);
+    
     dosstuff_write_reg(0x388, OPL3_REG_F_NUMBER_L_8, 177);
     dosstuff_write_reg(0x388, OPL3_REG_FNUM_H_BLOCK_KON_8, 0x06);
 }
