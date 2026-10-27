@@ -171,8 +171,8 @@ void opna_to_opl3(u8_t reg, u8_t data, u8_t port_idx) {
                 v_state->multi[reg_idx] |
                 (v_state->ks[reg_idx] << 4) |
                 (egt << 5) |
-                ((v_state->pms[op_to_ch_map[reg_idx]] >= 2 ? 1 : 0) << 6) |
-                (v_state->amon[reg_idx] << 7)
+                ((((v_state_p0.lfo & 8) && (v_state->pms[op_to_ch_map[reg_idx]] >= 2)) ? 1 : 0) << 6) |
+                (((v_state->amon[reg_idx] && v_state->ams[op_to_ch_map[reg_idx]] && (v_state_p0.lfo & 8)) ? 1 : 0) << 7)
             );
         }
  
@@ -192,8 +192,8 @@ void opna_to_opl3(u8_t reg, u8_t data, u8_t port_idx) {
             multi |
             (v_state->ks[idx] << 4) |
             (((keyed && !v_state->sr[idx]) ? 1 : 0) << 5) |
-            ((v_state->pms[op_to_ch_map[idx]] >= 2 ? 1 : 0) << 6) |
-            (v_state->amon[idx] << 7)
+            ((((v_state_p0.lfo & 8) && (v_state->pms[op_to_ch_map[idx]] >= 2)) ? 1 : 0) << 6) |
+            (((v_state->amon[idx] && v_state->ams[op_to_ch_map[idx]] && (v_state_p0.lfo & 8)) ? 1 : 0) << 7)
         );
         v_state->multi[idx] = multi;
         v_state->dt[idx] = dt;
@@ -208,8 +208,8 @@ void opna_to_opl3(u8_t reg, u8_t data, u8_t port_idx) {
             v_state->multi[idx] |
             (ks << 4) |
             (((keyed && !v_state->sr[idx]) ? 1 : 0) << 5) |
-            ((v_state->pms[op_to_ch_map[idx]] >= 2 ? 1 : 0) << 6) |
-            (v_state->amon[idx] << 7)
+            ((((v_state_p0.lfo & 8) && (v_state->pms[op_to_ch_map[idx]] >= 2)) ? 1 : 0) << 6) |
+            (((v_state->amon[idx] && v_state->ams[op_to_ch_map[idx]] && (v_state_p0.lfo & 8)) ? 1 : 0) << 7)
         );
         v_state->ks[idx] = ks;
         v_state->ar[idx] = ar;
@@ -226,8 +226,8 @@ void opna_to_opl3(u8_t reg, u8_t data, u8_t port_idx) {
             v_state->multi[idx] |
             (v_state->ks[idx] << 4) |
             (((keyed && !v_state->sr[idx]) ? 1 : 0) << 5) |
-            ((v_state->pms[op_to_ch_map[idx]] >= 2 ? 1 : 0) << 6) |
-            (amon << 7)
+            ((((v_state_p0.lfo & 8) && (v_state->pms[op_to_ch_map[idx]] >= 2)) ? 1 : 0) << 6) |
+            (((amon && v_state->ams[op_to_ch_map[idx]] && (v_state_p0.lfo & 8)) ? 1 : 0) << 7)
         );
         v_state->amon[idx] = amon;
         v_state->dr[idx] = dr;
@@ -258,8 +258,8 @@ void opna_to_opl3(u8_t reg, u8_t data, u8_t port_idx) {
             v_state->multi[idx] |
             (v_state->ks[idx] << 4) |
             (((keyed && !sr) ? 1 : 0) << 5) |
-            ((v_state->pms[op_to_ch_map[idx]] >= 2 ? 1 : 0) << 6) |
-            (v_state->amon[idx] << 7)
+            ((((v_state_p0.lfo & 8) && (v_state->pms[op_to_ch_map[idx]] >= 2)) ? 1 : 0) << 6) |
+            (((v_state->amon[idx] && v_state->ams[op_to_ch_map[idx]] && (v_state_p0.lfo & 8)) ? 1 : 0) << 7)
         );
         dosstuff_write_reg(port_base, OPL3_REG_MULT_KSR_EGT_VIB_AM_0 + op_map[idx], opl3_data);
     } else if (reg >= OPNA_FM_REG_FNUM1_0 && reg <= OPNA_FM_REG_FNUM1_2) {
@@ -294,16 +294,48 @@ void opna_to_opl3(u8_t reg, u8_t data, u8_t port_idx) {
         u8_t ams = (data >> 4) & 0x03;
         u8_t r = (data >> 6) & 0x01;
         u8_t l = data >> 7;
+        u8_t i;
         v_state->pms[idx] = pms;
         v_state->ams[idx] = ams;
         v_state->r[idx] = r;
         v_state->l[idx] = l;
         dosstuff_write_reg(port_base, OPL3_REG_CNT_FB_R_L_EX0_EX1_0 + idx, 0xc0 | (l << 4) | (r << 5) | (v_state->fb[idx] << 1) | cnt0_map[v_state->connect[idx]]);
         dosstuff_write_reg(port_base, OPL3_REG_CNT_FB_R_L_EX0_EX1_3 + idx, 0xc0 | (l << 4) | (r << 5) | cnt1_map[v_state->connect[idx]]);
+
+        for (i = 0; i < 4; ++i) {
+            u8_t reg_idx = idx + (i << 2);
+            u8_t keyed = is_operator_keyed(reg_idx, port_idx);
+            u8_t opl3_data = (
+                v_state->multi[reg_idx] |
+                (v_state->ks[reg_idx] << 4) |
+                (((keyed && !v_state->sr[reg_idx]) ? 1 : 0) << 5) |
+                ((((v_state_p0.lfo & 8) && (v_state->pms[op_to_ch_map[reg_idx]] >= 2)) ? 1 : 0) << 6) |
+                (((v_state->amon[reg_idx] && v_state->ams[op_to_ch_map[reg_idx]] && (v_state_p0.lfo & 8)) ? 1 : 0) << 7)
+            );
+            dosstuff_write_reg(port_base, OPL3_REG_MULT_KSR_EGT_VIB_AM_0 + op_map[reg_idx], opl3_data);
+        }
     } else if (reg == OPNA_FM_REG_LOAD_ENABLE_RESET_MODE) {
         u8_t mode = data >> 6;
-    } else if (reg == OPNA_FM_REG_LFO) {
+    } else if (reg == OPNA_FM_REG_LFO && port_idx == 0) {
+        u8_t i, idx;
         v_state_p0.lfo = data & 0x0f;
+
+        for (i = 0; i < 2; ++i) {
+            for (idx = 0; idx < 16; ++idx) {
+                u8_t keyed, opl3_data;
+                if ((idx & 3) == 3) continue;
+                v_state = v_states[i];
+                keyed = is_operator_keyed(idx, i);
+                opl3_data = (
+                    v_state->multi[idx] |
+                    (v_state->ks[idx] << 4) |
+                    (((keyed && !v_state->sr[idx]) ? 1 : 0) << 5) |
+                    ((((v_state_p0.lfo & 8) && (v_state->pms[op_to_ch_map[idx]] >= 2)) ? 1 : 0) << 6) |
+                    (((v_state->amon[idx] && v_state->ams[op_to_ch_map[idx]] && (v_state_p0.lfo & 8)) ? 1 : 0) << 7)
+                );
+                dosstuff_write_reg(0x388 + (i << 1), OPL3_REG_MULT_KSR_EGT_VIB_AM_0 + op_map[idx], opl3_data);
+            }
+        }
     } else if (port_idx == 0) {
         ssg_to_opl3(reg, data, port_idx);
         ryt_to_opl3(reg, data, port_idx);
