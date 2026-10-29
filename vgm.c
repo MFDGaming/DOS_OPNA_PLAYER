@@ -349,13 +349,13 @@ void print_info() {
     printf("VGM loop offset %lu\n", vgm_loop_off);
     printf("VGM loop samples %lu\n", hdr.loop_samples);
     printf("VGM total samples %lu\n", hdr.total_samples);
-    if (hdr.ym2608_clock) {
+    if (hdr.ym2608_clock && hdr.ym2608_clock <= 8600000) {
         printf("YM2608 clock %lu\n", hdr.ym2608_clock);
     }
-    if (hdr.ym2203_clock) {
+    if (hdr.ym2203_clock && hdr.ym2203_clock <= 8600000) {
         printf("YM2203 clock %lu\n", hdr.ym2203_clock);
     }
-    if (hdr.ym2612_clock) {
+    if (hdr.ym2612_clock && hdr.ym2612_clock <= 8600000) {
         printf("YM2612 clock %lu\n", hdr.ym2612_clock);
     }
 }
