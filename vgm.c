@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "ntypes.h"
 #include "player.h"
 #include "vgm.h"
+#include "opna.h"
 
 static vgm_hdr_t hdr;
 static FILE *in_fp;
@@ -13,6 +15,14 @@ static u32_t vgm_data_off;
 static u32_t vgm_gd3_off;
 static u32_t vgm_loop_off;
 static u32_t vgm_extra_hdr_off;
+
+u8_t psg_freq_lo[3] = {0, 0, 0};
+u8_t psg_freq_hi[3] = {0, 0, 0};
+u8_t psg_idx = 0;
+u8_t psg_iont = 0x3F;
+u8_t psg_llwt = 0;
+
+u8_t psg_to_ssg_att[16] =  {15, 14, 14, 13, 12, 12, 11, 10, 10, 9, 8, 8, 7, 6, 6, 0};
 
 static void end_playback() {
     player_write_register(0, 0x28, 0);
@@ -22,6 +32,27 @@ static void end_playback() {
     player_write_register(0, 0x28, 5);
     player_write_register(0, 0x28, 6);
     player_write_register(0, 0x07, 0x3f);
+}
+
+#define PSG_ATT_BIT 0x10
+#define PSG_REG_MASK 0x70
+
+void update_psg_freq() {
+    u8_t idx = psg_idx << 1;
+    u16_t n = ((psg_freq_hi[psg_idx]) << 4) | psg_freq_lo[psg_idx];
+    u32_t clk = hdr.sn76489_clock & ~0x80000000;
+    double f;
+    u16_t tp;
+    if (!n) {
+        n = 1024;
+    }
+    if (!clk) {
+        clk = 3579545;
+    }
+    f = clk / (n * 32.0);
+    tp = (u16_t)(hdr.ym2612_clock / (64.0 * f));
+    player_write_register(0, 0x00 + idx, tp & 0xff);
+    player_write_register(0, 0x01 + idx, (tp >> 8) & 0x0f);
 }
 
 int parse_cmds() {
@@ -44,7 +75,40 @@ int parse_cmds() {
             fprintf(stderr, "Unexpected EOF while reading the vgm command\n");
             return -1;
         }
-        if (cmd == 0x56 || cmd == 0x57 || cmd == 0x55) {
+        if (cmd == 0x50 || cmd == 0x4f) {
+            if (fread(&reg_data, 1, sizeof(u8_t), in_fp) != sizeof(u8_t)) {
+                fprintf(stderr, "Unexpected EOF while reading the SN76489 register data\n");
+                return -1;
+            }
+            if (reg_data & 0x80) {
+                u8_t psg_reg_addr = reg_data & PSG_REG_MASK;
+                u8_t psg_data = reg_data & 0x0f;
+                psg_llwt = 0;
+                if (psg_reg_addr <= 0x50) {
+                    u8_t idx = (psg_reg_addr >> 5) & 0x03;
+                    if (psg_reg_addr & PSG_ATT_BIT) {
+                        if (psg_data == 0x0f) {
+                            psg_iont |= 1 << idx;
+                            player_write_register(0, 0x07, psg_iont);
+                        } else {
+                            psg_iont &= ~(1 << idx);
+                            player_write_register(0, 0x07, psg_iont);
+                            player_write_register(0, 0x08 + idx, psg_to_ssg_att[psg_data]);
+                        }
+                    } else {
+                        psg_freq_lo[idx] = psg_data;
+                        psg_idx = idx;
+                        psg_llwt = 1;
+                        update_psg_freq();
+                    }
+                }
+            } else {
+                if (psg_llwt) {
+                    psg_freq_hi[psg_idx] = reg_data & 0x3f;
+                    update_psg_freq();
+                }
+            }
+        } else if (cmd == 0x56 || cmd == 0x57) {
             if (fread(&reg_id, 1, sizeof(u8_t), in_fp) != sizeof(u8_t)) {
                 fprintf(stderr, "Unexpected EOF while reading the YM2608 register id\n");
                 return -1;
@@ -54,6 +118,34 @@ int parse_cmds() {
                 return -1;
             }
             player_write_register(cmd & 1, reg_id, reg_data);
+        } else if (cmd == 0x52 || cmd == 0x53) {
+            if (fread(&reg_id, 1, sizeof(u8_t), in_fp) != sizeof(u8_t)) {
+                fprintf(stderr, "Unexpected EOF while reading the YM2612 register id\n");
+                return -1;
+            }
+            if (fread(&reg_data, 1, sizeof(u8_t), in_fp) != sizeof(u8_t)) {
+                fprintf(stderr, "Unexpected EOF while reading the YM2612 register data\n");
+                return -1;
+            }
+            player_write_register(cmd & 1, reg_id, reg_data);
+        } else if (cmd == 0xe0) {
+            u32_t seek_off;
+            if (fread(&seek_off, 1, sizeof(u32_t), in_fp) != sizeof(u32_t)) {
+                fprintf(stderr, "Unexpected EOF while reading the YM2612 seek offset\n");
+                return -1;
+            }
+        } else if ((cmd >> 4) == 0x08) {
+            player_wait(cmd & 0x0f);
+        } else if (cmd == 0x55) {
+            if (fread(&reg_id, 1, sizeof(u8_t), in_fp) != sizeof(u8_t)) {
+                fprintf(stderr, "Unexpected EOF while reading the YM2203 register id\n");
+                return -1;
+            }
+            if (fread(&reg_data, 1, sizeof(u8_t), in_fp) != sizeof(u8_t)) {
+                fprintf(stderr, "Unexpected EOF while reading the YM2203 register data\n");
+                return -1;
+            }
+            player_write_register(0, reg_id, reg_data);
         } else if (cmd == 0x62 || cmd == 0x63) {
             player_wait(735 + ((cmd & 1) * 147));
         } else if ((cmd >> 4) == 0x07) {
@@ -257,7 +349,15 @@ void print_info() {
     printf("VGM loop offset %lu\n", vgm_loop_off);
     printf("VGM loop samples %lu\n", hdr.loop_samples);
     printf("VGM total samples %lu\n", hdr.total_samples);
-    printf("YM2608 clock %lu\n", hdr.ym2608_clock);
+    if (hdr.ym2608_clock) {
+        printf("YM2608 clock %lu\n", hdr.ym2608_clock);
+    }
+    if (hdr.ym2203_clock) {
+        printf("YM2203 clock %lu\n", hdr.ym2203_clock);
+    }
+    if (hdr.ym2612_clock) {
+        printf("YM2612 clock %lu\n", hdr.ym2612_clock);
+    }
 }
 
 int read_vgm(char *path) {

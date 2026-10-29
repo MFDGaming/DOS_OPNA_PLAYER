@@ -1,6 +1,8 @@
 #ifndef VGMCONV_OPNA_H
 #define VGMCONV_OPNA_H
 
+#define OPNA_MASTER_CLOCK 7987200.0
+
 enum vgmconv_opna_fm_regs {
     OPNA_FM_REG_TEST = 0x21,
     OPNA_FM_REG_LFO = 0x22,

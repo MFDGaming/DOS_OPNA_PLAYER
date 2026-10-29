@@ -6,9 +6,6 @@
 #include "opna.h"
 #include "opl3.h"
 
-#define OPL3_MASTER_CLOCK 14318180.0
-#define OPNA_MASTER_CLOCK 7987200.0
-
 typedef struct {
     u8_t multi[16];
     u8_t dt[16];

@@ -1,6 +1,8 @@
 #ifndef VGMCONV_OPL3_H
 #define VGMCONV_OPL3_H
 
+#define OPL3_MASTER_CLOCK 14318180.0
+
 enum vgmconv_opl3_regs {
     OPL3_REG_LSI_TEST = 0x01,
     OPL3_REG_L_TIMER1 = 0x02,

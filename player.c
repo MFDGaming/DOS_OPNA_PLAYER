@@ -20,8 +20,16 @@ void player_setup() {
 #endif
 }
 
+static u32_t wait_rem = 0;
+
 void player_wait(u32_t samples) {
-    dosstuff_sleep_ms((samples * 1000) / 44100);
+    u32_t ms;
+    wait_rem += samples * 1000;
+    ms = wait_rem / 44100;
+    wait_rem -= ms * 44100;
+    if (ms) {
+        dosstuff_sleep_ms(ms);
+    }
 }
 
 void player_write_register(u8_t port_id, u8_t reg_id, u8_t reg_data) {
